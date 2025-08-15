@@ -24,3 +24,5 @@ abstract contract RewardToken is ERC20, Ownable {
         _mint(to, amount);
     }
 }
+
+//0x546788eAD6eeB829964B30a2D8aF12dFdd930358

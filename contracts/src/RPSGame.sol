@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.13;
 
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {RewardToken} from "./RewardToken.sol";
 import {GameNFT} from "./GameNFT.sol";
 import {MatchLib} from "./utils/MatchLib.sol";
-import {Errors} from "contracts/src/utils/Errors.sol";
+import {Errors} from "./utils/Errors.sol";
 
 /// @title RPSGame - Main Rock-Paper-Scissors Betting Game Contract
 contract RPSGame is ReentrancyGuard {
@@ -15,23 +16,13 @@ contract RPSGame is ReentrancyGuard {
     using MatchLib for MatchLib.Move;
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable usdc;
+    address public immutable usdc;
     RewardToken public rewardToken;
     GameNFT public gameNFT;
     address public owner;
 
     // Betting levels in USDC (6 decimals)
-    uint256[] public betLevels = [
-        1e6,
-        5e6,
-        10e6,
-        25e6,
-        50e6,
-        100e6,
-        200e6,
-        500e6,
-        1000e6
-    ];
+    uint256[] public betLevels = [1e6, 5e6, 10e6, 25e6, 50e6];
 
     // In-game balances
     mapping(address => uint256) public playerBalance;
@@ -43,6 +34,7 @@ contract RPSGame is ReentrancyGuard {
         WaitingForReveal,
         Resolved
     }
+
     struct Match {
         address creator;
         address joiner;
@@ -57,6 +49,7 @@ contract RPSGame is ReentrancyGuard {
         uint256 createdAt;
         uint256 resolvedAt;
     }
+
     uint256 public matchCounter;
     mapping(uint256 => Match) public matches;
 
@@ -68,8 +61,9 @@ contract RPSGame is ReentrancyGuard {
 
     // Streaks & claims
     mapping(address => uint256) public winStreak;
+    mapping(address => uint256) public winStreakAmountWon;
     mapping(address => uint256) public lastStreakRewardDate;
-    mapping(address => bool) public hasChampionNFT;
+    mapping(address => uint256) public hasNFTs;
 
     // Configs
     uint256 public constant STREAK_LENGTH = 5;
@@ -80,17 +74,9 @@ contract RPSGame is ReentrancyGuard {
     event MatchCreated(uint256 indexed matchId, address creator, uint256 bet);
     event MatchJoined(uint256 indexed matchId, address joiner);
     event Revealed(uint256 indexed matchId, address player, string move);
-    event MatchResolved(
-        uint256 indexed matchId,
-        address winner,
-        address loser,
-        uint8 result
-    );
+    event MatchResolved(uint256 indexed matchId, address winner, address loser, uint8 result);
     event StreakReward(
-        address indexed player,
-        uint256 date,
-        uint256 vctAmount,
-        uint256 tokenId
+        address indexed player, uint256 date, uint256 usdcStreakReward, uint256 vctAmount, uint256 tokenId
     );
 
     modifier onlyOwner() {
@@ -100,7 +86,7 @@ contract RPSGame is ReentrancyGuard {
 
     constructor(address _usdc, address _rewardToken, address _gameNFT) {
         owner = msg.sender;
-        usdc = IERC20(_usdc);
+        usdc = _usdc;
         rewardToken = RewardToken(_rewardToken);
         gameNFT = GameNFT(_gameNFT);
     }
@@ -110,12 +96,23 @@ contract RPSGame is ReentrancyGuard {
     /**
      * @notice Deposit USDC into your in-game balance.
      */
-    function deposit(uint256 amount) external nonReentrant {
-        if (amount == 0) revert Errors.ZeroAmount();
-        if (!usdc.transferFrom(msg.sender, address(this), amount))
-            revert Errors.DepositTransferFailed();
 
-        playerBalance[msg.sender] += amount;
+    // function permit(
+    //     address owner,
+    //     address spender,
+    //     uint256 value,
+    //     uint256 deadline,
+    //     uint8 v,
+    //     bytes32 r,
+    //     bytes32 s
+    // ) external;
+    function depositWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external nonReentrant {
+        if (amount == 0) revert Errors.ZeroAmount();
+        address _usdc = usdc;
+        IERC20Permit(_usdc).permit(msg.sender, address(this), amount, deadline, v, r, s);
+        if (IERC20(usdc).transferFrom(msg.sender, address(this), amount)) {
+            playerBalance[msg.sender] += amount;
+        }
         emit Deposited(msg.sender, amount);
     }
 
@@ -123,11 +120,13 @@ contract RPSGame is ReentrancyGuard {
      * @notice Withdraw any available in-game balance.
      */
     function withdraw(uint256 amount) external nonReentrant {
-        if (playerBalance[msg.sender] < amount)
+        if (playerBalance[msg.sender] < amount) {
             revert Errors.InsufficientBalance();
+        }
         playerBalance[msg.sender] -= amount;
-        if (!usdc.transfer(msg.sender, amount))
+        if (IERC20(usdc).transfer(msg.sender, amount)) {
             revert Errors.WithdrawTransferFailed();
+        }
         emit Withdrawn(msg.sender, amount);
     }
 
@@ -136,13 +135,11 @@ contract RPSGame is ReentrancyGuard {
     /**
      * @notice Create a new match by committing your move hash.
      */
-    function createMatch(
-        uint256 betAmount,
-        bytes32 moveHash
-    ) external nonReentrant returns (uint256) {
+    function createMatch(uint256 betAmount, bytes32 moveHash) external nonReentrant returns (uint256) {
         if (!_isValidBet(betAmount)) revert Errors.InvalidBet();
-        if (playerBalance[msg.sender] < betAmount)
+        if (playerBalance[msg.sender] < betAmount) {
             revert Errors.InsufficientBalance();
+        }
         if (moveHash == bytes32(0)) revert Errors.EmptyMove();
 
         // Lock bet
@@ -169,17 +166,16 @@ contract RPSGame is ReentrancyGuard {
      * @notice Join an existing match with your move hash.
      * @param matchId Equivalent to match counter.
      */
-    function joinMatch(
-        uint256 matchId,
-        bytes32 moveHash
-    ) external nonReentrant {
+    function joinMatch(uint256 matchId, bytes32 moveHash) external nonReentrant {
         Match storage m = matches[matchId];
-        if (m.status != MatchStatus.WaitingForJoin)
+        if (m.status != MatchStatus.WaitingForJoin) {
             revert Errors.IncorrectMatchStatus();
+        }
         if (msg.sender == m.creator) revert Errors.CreatorCannotJoin();
         if (moveHash == bytes32(0)) revert Errors.EmptyMove();
-        if (playerBalance[msg.sender] < m.betAmount)
+        if (playerBalance[msg.sender] < m.betAmount) {
             revert Errors.InsufficientBalance();
+        }
 
         // Cannot rematch recent opponent
         _requireNoRecentRematch(msg.sender, m.creator);
@@ -199,26 +195,25 @@ contract RPSGame is ReentrancyGuard {
     /**
      * @notice Reveal your move and salt. If both have revealed, resolves match.
      */
-    function revealMove(
-        uint256 matchId,
-        string calldata move,
-        string calldata salt
-    ) external nonReentrant {
+    function revealMove(uint256 matchId, string calldata move, string calldata salt) external nonReentrant {
         Match storage m = matches[matchId];
-        if (m.status != MatchStatus.WaitingForReveal)
+        if (m.status != MatchStatus.WaitingForReveal) {
             revert Errors.IncorrectMatchStatus();
+        }
 
         address player = msg.sender;
         bytes32 commit = keccak256(abi.encodePacked(move, salt));
         if (player == m.creator) {
-            if (bytes(m.creatorMove).length != 0)
+            if (bytes(m.creatorMove).length != 0) {
                 revert Errors.AlreadyRevealed();
+            }
             if (commit != m.creatorHash) revert Errors.InvalidReveal();
             m.creatorMove = move;
             m.creatorRevealed = true;
         } else if (player == m.joiner) {
-            if (bytes(m.joinerMove).length != 0)
+            if (bytes(m.joinerMove).length != 0) {
                 revert Errors.AlreadyRevealed();
+            }
             if (commit != m.joinerHash) revert Errors.InvalidReveal();
             m.joinerMove = move;
             m.joinerRevealed = true;
@@ -239,15 +234,18 @@ contract RPSGame is ReentrancyGuard {
      */
     function _resolveMatch(uint256 matchId) internal {
         Match storage m = matches[matchId];
-        if (!m.creatorRevealed && m.joinerRevealed)
+        if (!m.creatorRevealed && m.joinerRevealed) {
             revert Errors.RevealIncomplete();
-        if (m.status != MatchStatus.WaitingForReveal)
+        }
+        if (m.status != MatchStatus.WaitingForReveal) {
             revert Errors.IncorrectMatchStatus();
+        }
 
         MatchLib.Move cMove = MatchLib.parseMove(m.creatorMove);
         MatchLib.Move jMove = MatchLib.parseMove(m.joinerMove);
-        if (cMove == MatchLib.Move.None || jMove == MatchLib.Move.None)
+        if (cMove == MatchLib.Move.None || jMove == MatchLib.Move.None) {
             revert Errors.InvalidMove();
+        }
 
         // 0 = draw, 1 = creator wins, 2 = joiner wins
         uint8 outcome = MatchLib.determineWinner(cMove, jMove);
@@ -255,10 +253,17 @@ contract RPSGame is ReentrancyGuard {
         address loser;
         uint256 bet = m.betAmount;
 
+        // Update pairwise match history
+        _updateRecentOpponents(m.creator, m.joiner);
+
         if (outcome == 0) {
             // Draw: refund both
             playerBalance[m.creator] += bet;
             playerBalance[m.joiner] += bet;
+
+            // Reset Winstreak
+            winStreak[m.creator] == 0;
+            winStreak[m.joiner] == 0;
         } else {
             winner = (outcome == 1) ? m.creator : m.joiner;
             loser = (outcome == 1) ? m.joiner : m.creator;
@@ -267,11 +272,8 @@ contract RPSGame is ReentrancyGuard {
             uint256 prize = (bet * 175) / 100;
             playerBalance[winner] += prize;
             // Handle streak logic
-            _updateStreak(winner, loser);
+            _updateStreak(winner, loser, prize);
         }
-
-        // Update pairwise match history
-        _updateRecentOpponents(m.creator, m.joiner);
 
         m.status = MatchStatus.Resolved;
         m.resolvedAt = block.timestamp;
@@ -281,33 +283,28 @@ contract RPSGame is ReentrancyGuard {
 
     // --- Streak & Reward Logic ---
 
-    function _updateStreak(address winner, address loser) internal {
+    function _updateStreak(address winner, address loser, uint256 amountWon) internal {
         winStreak[winner] += 1;
         winStreak[loser] = 0;
 
-        if (
-            winStreak[winner] >= STREAK_LENGTH &&
-            _hasNotClaimedToday(winner) &&
-            !hasChampionNFT[winner]
-        ) {
+        amountWon += winStreakAmountWon[winner];
+        winStreakAmountWon[loser] = 0;
+
+        if (winStreak[winner] >= STREAK_LENGTH && _hasNotClaimedToday(winner)) {
             // Mint NFT
-            uint256 tokenId = gameNFT.mintChampionNFT(
-                winner,
-                "ipfs://champion-metadata"
-            );
-            hasChampionNFT[winner] = true;
+            uint256 tokenId = gameNFT.mintChampionNFT(winner, amountWon, "ipfs://champion-metadata");
+            hasNFTs[winner] += 1;
+            lastStreakRewardDate[winner] = _currentDay();
+
+            uint256 streakReward = (amountWon * 25) / 175;
+
+            IERC20(usdc).transfer(msg.sender, streakReward);
 
             // Mint VictoryToken reward
             rewardToken.mint(winner, STREAK_REWARD_AMOUNT);
 
             // Mark claim date
-            lastStreakRewardDate[winner] = _currentDay();
-            emit StreakReward(
-                winner,
-                lastStreakRewardDate[winner],
-                STREAK_REWARD_AMOUNT,
-                tokenId
-            );
+            emit StreakReward(winner, lastStreakRewardDate[winner], streakReward, STREAK_REWARD_AMOUNT, tokenId);
         }
     }
 
@@ -325,7 +322,7 @@ contract RPSGame is ReentrancyGuard {
         address[] memory oppA = recentOpponents[a];
         uint8 counter = 0;
         if (oppA.length > 0) {
-            for (uint i = oppA.length - 1; i > 0; i--) {
+            for (uint256 i = oppA.length - 1; i > 0; i--) {
                 if (oppA[i] == b) revert Errors.RematchBeforeFiveMatches();
                 counter++;
                 if (counter == 5) break;
@@ -343,7 +340,7 @@ contract RPSGame is ReentrancyGuard {
         arr.push(opp);
         if (arr.length > 5) {
             // Only keep last 5
-            for (uint i = 0; i < arr.length - 1; i++) {
+            for (uint256 i = 0; i < arr.length - 1; i++) {
                 arr[i] = arr[i + 1];
             }
             arr.pop();
@@ -352,8 +349,12 @@ contract RPSGame is ReentrancyGuard {
 
     // ---- Utility ----
 
+    function getPlayerBalance(address player) external view returns (uint256) {
+        return playerBalance[player];
+    }
+
     function _isValidBet(uint256 val) internal view returns (bool) {
-        for (uint i = 0; i < betLevels.length; i++) {
+        for (uint256 i = 0; i < betLevels.length; i++) {
             if (betLevels[i] == val) return true;
         }
         return false;
@@ -371,3 +372,6 @@ contract RPSGame is ReentrancyGuard {
         gameNFT = GameNFT(_nft);
     }
 }
+
+// solidity version updated
+//0x79233485F001EB3A26043F7feDc9Cf647Ac3B426
