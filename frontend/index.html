@@ -1,0 +1,122 @@
+<!-- <html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPS GAME ZONE</title>
+</head>
+<body>
+    <h1>RPS GAME ZONE</h1><br>
+
+    Deposit USDC
+    <h3>Deposit USDC</h3>
+    <label for="depositAmountInput">Enter deposit Amount</label>
+    <input id="depositAmountInput" placeholder="Minimum 1 USDC">
+    <button id="depositButton">Deposit Amount</button><br><br>
+
+    Create Match
+    <h3>Create a New Match</h3>
+    <label for="betLevels">Select Betting Amount</label>
+    <select id="betLevels" name="bets">
+        <option value="level1">1 USDC</option>
+        <option value="level2">5 USDC</option>
+        <option value="level3">10 USDC</option>
+        <option value="level4">25 USDC</option>
+        <option value="level5">50 USDC</option>
+    </select>
+    <button id="createMatchButton">Create Match</button><br><br>
+
+    Join Match
+    <h3>Join Match</h3>
+    <label for="matchId">Enter Match Id</label>
+    <input id="matchId" placeholder="1">
+    <button id="joinMatchButton">Join Match</button><br><br>
+
+    Withdraw USDC
+    <h3>Withdraw USDC</h3>
+    <label for="withdrawAmount">Enter withdraw Amount</label>
+    <input id="withdrawAmount" placeholder="1 USDC">
+    <button id="withdrawButton">Withdraw Amount</button><br><br>
+
+    Script Module
+    <script src="./index-js.js" type="module"></script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>On-Chain RPS Game</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <h1>Rock Paper Scissors On-Chain</h1>
+            <button id="connectWalletBtn">Connect MetaMask</button>
+            <span id="walletAddress"></span>
+            <div id="balance">Deposited Amount: --</div>
+        </header>
+
+        <section id="depositWithdraw">
+            <h2>Deposit / Withdraw</h2>
+            <input id="usdcAmount" type="number" placeholder="Enter USDC amount" />
+            <button id="depositBtn">Deposit</button>
+            <button id="withdrawBtn">Withdraw</button>
+        </section>
+
+        <section id="createMatch">
+            <h2>Create Match</h2>
+            <select id="betLevelSelect">
+                <option value="1000000">1 USDC</option>
+                <option value="5000000">5 USDC</option>
+                <option value="10000000">10 USDC</option>
+                <option value="25000000">25 USDC</option>
+                <option value="50000000">50 USDC</option>
+            </select>
+            <select id="createMoveSelect">
+                <option value="rock">Rock</option>
+                <option value="paper">Paper</option>
+                <option value="scissors">Scissors</option>
+            </select>
+            <input id="createSalt" type="text" placeholder="Enter secret salt" />
+            <button id="createMatchBtn">Create</button>
+            <div id="createMatchStatus"></div>
+        </section>
+
+        <section id="joinMatch">
+            <h2>Join Match</h2>
+            <input id="joinMatchId" type="number" placeholder="Match ID" />
+            <select id="joinMoveSelect">
+                <option value="rock">Rock</option>
+                <option value="paper">Paper</option>
+                <option value="scissors">Scissors</option>
+            </select>
+            <input id="joinSalt" type="text" placeholder="Enter secret salt" />
+            <button id="joinMatchBtn">Join</button>
+            <div id="joinMatchStatus"></div>
+        </section>
+
+        <section id="revealMove">
+            <h2>Reveal Move</h2>
+            <input id="revealMatchId" type="number" placeholder="Match ID" />
+            <input id="revealMoveInput" type="text" placeholder="Move: rock/paper/scissors" />
+            <input id="revealSaltInput" type="text" placeholder="Your salt" />
+            <button id="revealBtn">Reveal</button>
+            <div id="revealStatus"></div>
+        </section>
+
+        <section id="resolveMatch">
+            <h2>Resolve Match (auto on both reveal)</h2>
+            <input id="resolveMatchId" type="number" placeholder="Match ID" />
+            <button id="getMatchStatusBtn">Get Status</button>
+            <div id="matchStatus"></div>
+        </section>
+    </div>
+    <!-- <script src="lib/viem.min.js"></script> -->
+    <script src="app.js" type="module"></script>
+</body>
+
+</html>
