@@ -124,7 +124,8 @@ contract RPSGame is ReentrancyGuard {
             revert Errors.InsufficientBalance();
         }
         playerBalance[msg.sender] -= amount;
-        if (IERC20(usdc).transfer(msg.sender, amount)) {
+        (bool success) = IERC20(usdc).transfer(msg.sender, amount);
+        if (!success) {
             revert Errors.WithdrawTransferFailed();
         }
         emit Withdrawn(msg.sender, amount);
