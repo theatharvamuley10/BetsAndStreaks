@@ -1,5 +1,5 @@
-export let CONTRACT_ADDRESS = "0xa5EC5b79a06420e8181a9Ccf2ba333b497e7BCfA";
-export let USDC_ADDRESS = "0x80cf43215E2b889E9b3A4d9d1428a2c4a1CB3953";
+export let CONTRACT_ADDRESS = "0xdAd3DB5D360aD21137794FF35f93966F0555c9Ea";
+export let USDC_ADDRESS = "0x7622434Cea8FFe1a844636c04D10Ad76c7586572";
 
 /*//////////////////////////////////////////////////////////////
                                 RPS ABI
@@ -32,66 +32,9 @@ export const abi = [
     type: "error",
   },
   {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "betAmount",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes32",
-        name: "moveHash",
-        type: "bytes32",
-      },
-    ],
-    name: "createMatch",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     inputs: [],
     name: "CreatorCannotJoin",
     type: "error",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "deadline",
-        type: "uint256",
-      },
-      {
-        internalType: "uint8",
-        name: "v",
-        type: "uint8",
-      },
-      {
-        internalType: "bytes32",
-        name: "r",
-        type: "bytes32",
-      },
-      {
-        internalType: "bytes32",
-        name: "s",
-        type: "bytes32",
-      },
-    ],
-    name: "depositWithPermit",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
   },
   {
     inputs: [],
@@ -122,24 +65,6 @@ export const abi = [
     inputs: [],
     name: "InvalidReveal",
     type: "error",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "matchId",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes32",
-        name: "moveHash",
-        type: "bytes32",
-      },
-    ],
-    name: "joinMatch",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
   },
   {
     inputs: [],
@@ -291,55 +216,6 @@ export const abi = [
     type: "event",
   },
   {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "matchId",
-        type: "uint256",
-      },
-      {
-        internalType: "string",
-        name: "move",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "salt",
-        type: "string",
-      },
-    ],
-    name: "revealMove",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_nft",
-        type: "address",
-      },
-    ],
-    name: "setGameNFT",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_reward",
-        type: "address",
-      },
-    ],
-    name: "setRewardToken",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     anonymous: false,
     inputs: [
       {
@@ -377,19 +253,6 @@ export const abi = [
     type: "event",
   },
   {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "withdraw",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     anonymous: false,
     inputs: [
       {
@@ -409,6 +272,32 @@ export const abi = [
     type: "event",
   },
   {
+    inputs: [],
+    name: "STREAK_LENGTH",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "STREAK_REWARD_AMOUNT",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [
       {
         internalType: "uint256",
@@ -425,6 +314,63 @@ export const abi = [
       },
     ],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "betAmount",
+        type: "uint256",
+      },
+      {
+        internalType: "bytes32",
+        name: "moveHash",
+        type: "bytes32",
+      },
+    ],
+    name: "createMatch",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "deadline",
+        type: "uint256",
+      },
+      {
+        internalType: "uint8",
+        name: "v",
+        type: "uint8",
+      },
+      {
+        internalType: "bytes32",
+        name: "r",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes32",
+        name: "s",
+        type: "bytes32",
+      },
+    ],
+    name: "depositWithPermit",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -476,6 +422,24 @@ export const abi = [
       },
     ],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "matchId",
+        type: "uint256",
+      },
+      {
+        internalType: "bytes32",
+        name: "moveHash",
+        type: "bytes32",
+      },
+    ],
+    name: "joinMatch",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -665,6 +629,29 @@ export const abi = [
     type: "function",
   },
   {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "matchId",
+        type: "uint256",
+      },
+      {
+        internalType: "string",
+        name: "move",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "salt",
+        type: "string",
+      },
+    ],
+    name: "revealMove",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
     inputs: [],
     name: "rewardToken",
     outputs: [
@@ -678,29 +665,29 @@ export const abi = [
     type: "function",
   },
   {
-    inputs: [],
-    name: "STREAK_LENGTH",
-    outputs: [
+    inputs: [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        internalType: "address",
+        name: "_nft",
+        type: "address",
       },
     ],
-    stateMutability: "view",
+    name: "setGameNFT",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
-    inputs: [],
-    name: "STREAK_REWARD_AMOUNT",
-    outputs: [
+    inputs: [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        internalType: "address",
+        name: "_reward",
+        type: "address",
       },
     ],
-    stateMutability: "view",
+    name: "setRewardToken",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -752,6 +739,19 @@ export const abi = [
       },
     ],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
 ];
