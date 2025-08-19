@@ -1,4 +1,4 @@
-export let CONTRACT_ADDRESS = "0xdAd3DB5D360aD21137794FF35f93966F0555c9Ea";
+export let CONTRACT_ADDRESS = "0x8E6EE70076Cb398185e236B13A1FEf1165b63e45";
 export let USDC_ADDRESS = "0x7622434Cea8FFe1a844636c04D10Ad76c7586572";
 
 /*//////////////////////////////////////////////////////////////
@@ -469,6 +469,25 @@ export const abi = [
         internalType: "uint256",
         name: "",
         type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    name: "matchIdToWinner",
+    outputs: [
+      {
+        internalType: "address",
+        name: "",
+        type: "address",
       },
     ],
     stateMutability: "view",
