@@ -10,24 +10,44 @@ import {GameNFT} from "./GameNFT.sol";
 import {MatchLib} from "./utils/MatchLib.sol";
 import {Errors} from "./utils/Errors.sol";
 
-/// @title RPSGame - Main Rock-Paper-Scissors Betting Game Contract
+/**
+ * @title RPSGame - Main Rock-Paper-Scissors Betting Game Contract
+ * @notice A decentralized rock-paper-scissors game with USDC betting, streak rewards, and NFT prizes
+ * @dev Implements commit-reveal scheme for fair gameplay and anti-rematch protection
+ */
 contract RPSGame is ReentrancyGuard {
     using MatchLib for string;
     using MatchLib for MatchLib.Move;
     using SafeERC20 for IERC20;
 
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+    /// @notice USDC token contract address
     address public immutable usdc;
+
+    /// @notice Reward token contract for streak bonuses
     RewardToken public rewardToken;
+
+    /// @notice NFT contract for champion rewards
     GameNFT public gameNFT;
+
+    /// @notice Contract owner address
     address public owner;
 
-    // Betting levels in USDC (6 decimals)
-    uint256[] public betLevels = [1e6, 5e6, 10e6, 25e6, 50e6];
+    /// @notice Conversion factor for ETH to Wei
+    uint256 private constant ETH_TO_WEI = 10 ** 18;
 
-    // In-game balances
+    /// @notice Available betting levels in USDC (18 decimals for internal calculations)
+    uint256[] public betLevels = [1e18, 5e18, 10e18, 25e18, 50e18];
+
+    /// @notice Player in-game USDC balances
     mapping(address => uint256) public playerBalance;
 
-    // Matching & Match Info
+    /*//////////////////////////////////////////////////////////////
+                            MATCH STRUCTURES
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Match status enumeration
     enum MatchStatus {
         None,
         WaitingForJoin,
@@ -35,55 +55,108 @@ contract RPSGame is ReentrancyGuard {
         Resolved
     }
 
+    /// @notice Match data structure
     struct Match {
-        address creator;
-        address joiner;
-        uint256 betAmount;
-        bytes32 creatorHash;
-        bytes32 joinerHash;
-        string creatorMove; // revealed
-        string joinerMove; // revealed
-        bool creatorRevealed;
-        bool joinerRevealed;
-        MatchStatus status;
-        uint256 createdAt;
-        uint256 resolvedAt;
+        address creator; // Match creator address
+        address joiner; // Match joiner address
+        uint256 betAmount; // Bet amount in USDC
+        bytes32 creatorHash; // Creator's move commitment hash
+        bytes32 joinerHash; // Joiner's move commitment hash
+        string creatorMove; // Creator's revealed move
+        string joinerMove; // Joiner's revealed move
+        bool creatorRevealed; // Creator reveal status
+        bool joinerRevealed; // Joiner reveal status
+        MatchStatus status; // Current match status
+        uint256 createdAt; // Match creation timestamp
+        uint256 resolvedAt; // Match resolution timestamp
     }
 
+    /*//////////////////////////////////////////////////////////////
+                       MATCH AND PLAYER TRACKING
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Global match counter
     uint256 public matchCounter;
+
+    /// @notice Match ID to match data mapping
     mapping(uint256 => Match) public matches;
 
-    // Player match mapping
+    /// @notice Player address to their match IDs
     mapping(address => uint256[]) public playerMatches;
 
-    // Pairwise match history: player => opponent => recent opponents
+    /// @notice Recent opponent tracking for anti-rematch system
     mapping(address => address[]) public recentOpponents;
 
-    // Streaks & claims
+    /// @notice Match ID to winner address mapping
+    mapping(uint256 => address) public matchIdToWinner;
+
+    /*//////////////////////////////////////////////////////////////
+                       STREAK AND REWARD TRACKING
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Player current win streak count
     mapping(address => uint256) public winStreak;
+
+    /// @notice Total amount won during current streak
     mapping(address => uint256) public winStreakAmountWon;
+
+    /// @notice Last date player claimed streak reward
     mapping(address => uint256) public lastStreakRewardDate;
+
+    /// @notice Number of NFTs owned by player
     mapping(address => uint256) public hasNFTs;
 
-    // Configs
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Required streak length for rewards
     uint256 public constant STREAK_LENGTH = 5;
-    uint256 public constant STREAK_REWARD_AMOUNT = 100e18; // 100 VCT per streak
 
+    /// @notice VCT reward amount per streak (100 VCT)
+    uint256 public constant STREAK_REWARD_AMOUNT = 100e18;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Emitted when player deposits USDC
     event Deposited(address indexed player, uint256 amount);
+
+    /// @notice Emitted when player withdraws USDC
     event Withdrawn(address indexed player, uint256 amount);
+
+    /// @notice Emitted when new match is created
     event MatchCreated(uint256 indexed matchId, address creator, uint256 bet);
+
+    /// @notice Emitted when player joins a match
     event MatchJoined(uint256 indexed matchId, address joiner);
+
+    /// @notice Emitted when player reveals their move
     event Revealed(uint256 indexed matchId, address player, string move);
+
+    /// @notice Emitted when match is resolved
     event MatchResolved(uint256 indexed matchId, address winner, address loser, uint8 result);
+
+    /// @notice Emitted when streak reward is claimed
     event StreakReward(
         address indexed player, uint256 date, uint256 usdcStreakReward, uint256 vctAmount, uint256 tokenId
     );
 
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Restricts function access to contract owner only
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
         _;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @notice Contract constructor
+     * @param _usdc USDC token contract address
+     * @param _rewardToken Reward token contract address
+     * @param _gameNFT Game NFT contract address
+     */
     constructor(address _usdc, address _rewardToken, address _gameNFT) {
         owner = msg.sender;
         usdc = _usdc;
@@ -91,35 +164,34 @@ contract RPSGame is ReentrancyGuard {
         gameNFT = GameNFT(_gameNFT);
     }
 
-    // --- Deposit and Withdraw ---
-
+    /*//////////////////////////////////////////////////////////////
+                    DEPOSIT AND WITHDRAWAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /**
-     * @notice Deposit USDC into your in-game balance.
+     * @notice Deposit USDC into your in-game balance using permit
+     * @param amount Amount to deposit (in USDC units, will be converted to wei)
+     * @param deadline Permit deadline timestamp
+     * @param v Permit signature component
+     * @param r Permit signature component
+     * @param s Permit signature component
      */
-
-    // function permit(
-    //     address owner,
-    //     address spender,
-    //     uint256 value,
-    //     uint256 deadline,
-    //     uint8 v,
-    //     bytes32 r,
-    //     bytes32 s
-    // ) external;
     function depositWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external nonReentrant {
+        amount = amount * ETH_TO_WEI;
         if (amount == 0) revert Errors.ZeroAmount();
         address _usdc = usdc;
         IERC20Permit(_usdc).permit(msg.sender, address(this), amount, deadline, v, r, s);
-        if (IERC20(usdc).transferFrom(msg.sender, address(this), amount)) {
+        if (IERC20(_usdc).transferFrom(msg.sender, address(this), amount)) {
             playerBalance[msg.sender] += amount;
         }
         emit Deposited(msg.sender, amount);
     }
 
     /**
-     * @notice Withdraw any available in-game balance.
+     * @notice Withdraw USDC from your in-game balance
+     * @param amount Amount to withdraw (in USDC units, will be converted to wei)
      */
     function withdraw(uint256 amount) external nonReentrant {
+        amount = amount * ETH_TO_WEI;
         if (playerBalance[msg.sender] < amount) {
             revert Errors.InsufficientBalance();
         }
@@ -131,12 +203,17 @@ contract RPSGame is ReentrancyGuard {
         emit Withdrawn(msg.sender, amount);
     }
 
-    // --- Match Flow: Create > Join > Reveal > Resolve ---
-
+    /*//////////////////////////////////////////////////////////////
+                       MATCH CREATION AND JOINING
+    //////////////////////////////////////////////////////////////*/
     /**
-     * @notice Create a new match by committing your move hash.
+     * @notice Create a new match by committing your move hash
+     * @param betAmount Bet amount for the match
+     * @param moveHash Keccak256 hash of (move + salt)
+     * @return matchId The created match ID
      */
     function createMatch(uint256 betAmount, bytes32 moveHash) external nonReentrant returns (uint256) {
+        betAmount = ETH_TO_WEI;
         if (!_isValidBet(betAmount)) revert Errors.InvalidBet();
         if (playerBalance[msg.sender] < betAmount) {
             revert Errors.InsufficientBalance();
@@ -164,8 +241,9 @@ contract RPSGame is ReentrancyGuard {
     }
 
     /**
-     * @notice Join an existing match with your move hash.
-     * @param matchId Equivalent to match counter.
+     * @notice Join an existing match with your move hash
+     * @param matchId Match ID to join
+     * @param moveHash Keccak256 hash of (move + salt)
      */
     function joinMatch(uint256 matchId, bytes32 moveHash) external nonReentrant {
         Match storage m = matches[matchId];
@@ -193,8 +271,14 @@ contract RPSGame is ReentrancyGuard {
         emit MatchJoined(matchId, msg.sender);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                  MOVE REVEALING AND MATCH RESOLUTION
+    //////////////////////////////////////////////////////////////*/
     /**
-     * @notice Reveal your move and salt. If both have revealed, resolves match.
+     * @notice Reveal your move and salt. If both have revealed, resolves match
+     * @param matchId Match ID to reveal move for
+     * @param move Your move ("rock", "paper", or "scissors")
+     * @param salt Random salt used in commitment
      */
     function revealMove(uint256 matchId, string calldata move, string calldata salt) external nonReentrant {
         Match storage m = matches[matchId];
@@ -231,7 +315,8 @@ contract RPSGame is ReentrancyGuard {
     }
 
     /**
-     * @dev Internal: resolve the match when both moves revealed.
+     * @dev Internal function to resolve match when both moves are revealed
+     * @param matchId Match ID to resolve
      */
     function _resolveMatch(uint256 matchId) internal {
         Match storage m = matches[matchId];
@@ -272,6 +357,7 @@ contract RPSGame is ReentrancyGuard {
             // Winner gets 1.75x bet, contract keeps 0.25x, loser gets 0
             uint256 prize = (bet * 175) / 100;
             playerBalance[winner] += prize;
+            matchIdToWinner[matchId] = winner;
             // Handle streak logic
             _updateStreak(winner, loser, prize);
         }
@@ -282,8 +368,15 @@ contract RPSGame is ReentrancyGuard {
         emit MatchResolved(matchId, winner, loser, outcome);
     }
 
-    // --- Streak & Reward Logic ---
-
+    /*//////////////////////////////////////////////////////////////
+                        STREAK AND REWARD LOGIC
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev Update win streaks and handle streak rewards
+     * @param winner Address of the match winner
+     * @param loser Address of the match loser
+     * @param amountWon Amount won in the match
+     */
     function _updateStreak(address winner, address loser, uint256 amountWon) internal {
         winStreak[winner] += 1;
         winStreak[loser] = 0;
@@ -309,16 +402,31 @@ contract RPSGame is ReentrancyGuard {
         }
     }
 
+    /**
+     * @dev Check if player has not claimed streak reward today
+     * @param player Player address to check
+     * @return bool True if player hasn't claimed today
+     */
     function _hasNotClaimedToday(address player) internal view returns (bool) {
         return lastStreakRewardDate[player] < _currentDay();
     }
 
+    /**
+     * @dev Get current day as timestamp divided by 1 day
+     * @return uint256 Current day number
+     */
     function _currentDay() internal view returns (uint256) {
         return block.timestamp / 1 days;
     }
 
-    // ---- Recent Opponent Management (No Rematch Rule) ----
-
+    /*//////////////////////////////////////////////////////////////
+                          ANTI-REMATCH SYSTEM
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev Require that two players haven't played recently (anti-rematch protection)
+     * @param a First player address
+     * @param b Second player address
+     */
     function _requireNoRecentRematch(address a, address b) internal view {
         address[] memory oppA = recentOpponents[a];
         uint8 counter = 0;
@@ -331,11 +439,21 @@ contract RPSGame is ReentrancyGuard {
         }
     }
 
+    /**
+     * @dev Update recent opponents list for both players
+     * @param a First player address
+     * @param b Second player address
+     */
     function _updateRecentOpponents(address a, address b) internal {
         _pushRecentOpponent(a, b);
         _pushRecentOpponent(b, a);
     }
 
+    /**
+     * @dev Add opponent to player's recent opponents list (max 5)
+     * @param player Player address
+     * @param opp Opponent address to add
+     */
     function _pushRecentOpponent(address player, address opp) internal {
         address[] storage arr = recentOpponents[player];
         arr.push(opp);
@@ -348,12 +466,23 @@ contract RPSGame is ReentrancyGuard {
         }
     }
 
-    // ---- Utility ----
-
+    /*//////////////////////////////////////////////////////////////
+                             VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @notice Get player's current in-game balance
+     * @param player Player address
+     * @return uint256 Player's balance in USDC wei
+     */
     function getPlayerBalance(address player) external view returns (uint256) {
         return playerBalance[player];
     }
 
+    /**
+     * @dev Check if bet amount is valid according to predefined levels
+     * @param val Bet amount to validate
+     * @return bool True if bet amount is valid
+     */
     function _isValidBet(uint256 val) internal view returns (bool) {
         for (uint256 i = 0; i < betLevels.length; i++) {
             if (betLevels[i] == val) return true;
@@ -361,18 +490,24 @@ contract RPSGame is ReentrancyGuard {
         return false;
     }
 
-    // ---- Admin ----
-
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @notice Set new reward token contract (owner only)
+     * @param _reward New reward token contract address
+     */
     function setRewardToken(address _reward) external onlyOwner {
         require(_reward != address(0), "Zero address");
         rewardToken = RewardToken(_reward);
     }
 
+    /**
+     * @notice Set new game NFT contract (owner only)
+     * @param _nft New game NFT contract address
+     */
     function setGameNFT(address _nft) external onlyOwner {
         require(_nft != address(0), "Zero address");
         gameNFT = GameNFT(_nft);
     }
 }
-
-// solidity version updated
-//0x79233485F001EB3A26043F7feDc9Cf647Ac3B426
