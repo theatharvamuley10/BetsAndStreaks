@@ -1,52 +1,9 @@
-<!-- <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPS GAME ZONE</title>
-</head>
-<body>
-    <h1>RPS GAME ZONE</h1><br>
-
-    Deposit USDC
-    <h3>Deposit USDC</h3>
-    <label for="depositAmountInput">Enter deposit Amount</label>
-    <input id="depositAmountInput" placeholder="Minimum 1 USDC">
-    <button id="depositButton">Deposit Amount</button><br><br>
-
-    Create Match
-    <h3>Create a New Match</h3>
-    <label for="betLevels">Select Betting Amount</label>
-    <select id="betLevels" name="bets">
-        <option value="level1">1 USDC</option>
-        <option value="level2">5 USDC</option>
-        <option value="level3">10 USDC</option>
-        <option value="level4">25 USDC</option>
-        <option value="level5">50 USDC</option>
-    </select>
-    <button id="createMatchButton">Create Match</button><br><br>
-
-    Join Match
-    <h3>Join Match</h3>
-    <label for="matchId">Enter Match Id</label>
-    <input id="matchId" placeholder="1">
-    <button id="joinMatchButton">Join Match</button><br><br>
-
-    Withdraw USDC
-    <h3>Withdraw USDC</h3>
-    <label for="withdrawAmount">Enter withdraw Amount</label>
-    <input id="withdrawAmount" placeholder="1 USDC">
-    <button id="withdrawButton">Withdraw Amount</button><br><br>
-
-    Script Module
-    <script src="./index-js.js" type="module"></script>
-</body>
-</html> -->
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>On-Chain RPS Game</title>
     <link rel="stylesheet" href="style.css" />
 </head>
@@ -62,61 +19,132 @@
 
         <section id="depositWithdraw">
             <h2>Deposit / Withdraw</h2>
-            <input id="usdcAmount" type="number" placeholder="Enter USDC amount" />
-            <button id="depositBtn">Deposit</button>
-            <button id="withdrawBtn">Withdraw</button>
+            <div class="form-group">
+                <label for="usdcAmount">USDC Amount</label>
+                <input id="usdcAmount" type="number" placeholder="Enter USDC amount" />
+            </div>
+            <div class="form-row">
+                <button id="depositBtn">Deposit</button>
+                <button id="withdrawBtn">Withdraw</button>
+            </div>
         </section>
 
         <section id="createMatch">
             <h2>Create Match</h2>
-            <select id="betLevelSelect">
-                <option value="1">1 USDC</option>
-                <option value="5">5 USDC</option>
-                <option value="10">10 USDC</option>
-                <option value="25">25 USDC</option>
-                <option value="50">50 USDC</option>
-            </select>
-            <select id="createMoveSelect">
-                <option value="rock">Rock</option>
-                <option value="paper">Paper</option>
-                <option value="scissors">Scissors</option>
-            </select>
-            <input id="createSalt" type="text" placeholder="Enter secret salt" />
-            <button id="createMatchBtn">Create</button>
+            <div class="form-group">
+                <label for="betLevelSelect">Betting Amount</label>
+                <select id="betLevelSelect">
+                    <option value="1">1 USDC</option>
+                    <option value="5">5 USDC</option>
+                    <option value="10">10 USDC</option>
+                    <option value="25">25 USDC</option>
+                    <option value="50">50 USDC</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="createMoveSelect">Your Move</label>
+                <select id="createMoveSelect">
+                    <option value="rock">🪨 Rock</option>
+                    <option value="paper">📄 Paper</option>
+                    <option value="scissors">✂️ Scissors</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="createSalt">Secret Salt</label>
+                <input id="createSalt" type="text" placeholder="Enter secret salt for commitment" />
+            </div>
+            <button id="createMatchBtn">Create Match</button>
             <div id="createMatchStatus"></div>
         </section>
 
         <section id="joinMatch">
             <h2>Join Match</h2>
-            <input id="joinMatchId" type="number" placeholder="Match ID" />
-            <select id="joinMoveSelect">
-                <option value="rock">Rock</option>
-                <option value="paper">Paper</option>
-                <option value="scissors">Scissors</option>
-            </select>
-            <input id="joinSalt" type="text" placeholder="Enter secret salt" />
-            <button id="joinMatchBtn">Join</button>
+            <div class="form-group">
+                <label for="joinMatchId">Match ID</label>
+                <input id="joinMatchId" type="number" placeholder="Enter Match ID" />
+            </div>
+            <div class="form-group">
+                <label for="joinMoveSelect">Your Move</label>
+                <select id="joinMoveSelect">
+                    <option value="rock">🪨 Rock</option>
+                    <option value="paper">📄 Paper</option>
+                    <option value="scissors">✂️ Scissors</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="joinSalt">Secret Salt</label>
+                <input id="joinSalt" type="text" placeholder="Enter secret salt for commitment" />
+            </div>
+            <button id="joinMatchBtn">Join Match</button>
             <div id="joinMatchStatus"></div>
         </section>
 
         <section id="revealMove">
             <h2>Reveal Move</h2>
-            <input id="revealMatchId" type="number" placeholder="Match ID" />
-            <input id="revealMoveInput" type="text" placeholder="Move: rock/paper/scissors" />
-            <input id="revealSaltInput" type="text" placeholder="Your salt" />
-            <button id="revealBtn">Reveal</button>
+            <div class="form-group">
+                <label for="revealMatchId">Match ID</label>
+                <input id="revealMatchId" type="number" placeholder="Enter Match ID" />
+            </div>
+            <div class="form-group">
+                <label for="revealMoveInput">Your Move</label>
+                <input id="revealMoveInput" type="text" placeholder="rock, paper, or scissors" />
+            </div>
+            <div class="form-group">
+                <label for="revealSaltInput">Your Salt</label>
+                <input id="revealSaltInput" type="text" placeholder="The salt you used earlier" />
+            </div>
+            <button id="revealBtn">Reveal Move</button>
             <div id="revealStatus"></div>
         </section>
 
         <section id="resolveMatch">
-            <h2>Resolve Match (auto on both reveal)</h2>
-            <input id="resolveMatchId" type="number" placeholder="Match ID" />
-            <button id="getMatchStatusBtn">Get Status</button>
+            <h2>Match Status</h2>
+            <div class="form-group">
+                <label for="resolveMatchId">Match ID</label>
+                <input id="resolveMatchId" type="number" placeholder="Enter Match ID" />
+            </div>
+            <button id="getMatchStatusBtn">Get Match Status</button>
             <div id="matchStatus"></div>
         </section>
     </div>
-    <!-- <script src="lib/viem.min.js"></script> -->
+
     <script src="app.js" type="module"></script>
+
+    <script>
+        // Enhanced UI interactions
+        document.addEventListener('DOMContentLoaded', function () {
+            // Add loading states to buttons
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function () {
+                    this.classList.add('loading');
+                    setTimeout(() => {
+                        this.classList.remove('loading');
+                    }, 2000);
+                });
+            });
+
+            // Add form validation feedback
+            const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+            inputs.forEach(input => {
+                input.addEventListener('blur', function () {
+                    if (this.value && this.checkValidity()) {
+                        this.style.borderColor = '#10b981';
+                        this.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                    } else if (this.value) {
+                        this.style.borderColor = '#ef4444';
+                        this.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                    } else {
+                        this.style.borderColor = '';
+                        this.style.boxShadow = '';
+                    }
+                });
+            });
+
+            // Smooth scroll behavior for better UX
+            document.documentElement.style.scrollBehavior = 'smooth';
+        });
+    </script>
 </body>
 
 </html>
